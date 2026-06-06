@@ -6,6 +6,8 @@
 
 ---
 
+> 📋 **Judges / demo:** see **[DEMO.md](DEMO.md)** — 60-second setup + a 90-second demo script.
+
 ## What it does
 
 - **Deaf/mute → hearing:** sign over the camera → on-device hand tracking → gesture tokens →
