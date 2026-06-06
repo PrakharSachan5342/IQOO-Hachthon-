@@ -3,6 +3,7 @@ package com.kraftshala.senselink
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
@@ -138,7 +139,7 @@ private fun SenseLinkApp(onWebViewCreated: (WebView) -> Unit) {
                 val assetLoader = WebViewAssetLoader.Builder()
                     .addPathHandler("/assets/", MimeAwareAssetsHandler(ctx))
                     .build()
-                val host = ctx as? MainActivity
+                val host = ctx.findMainActivity()
 
                 WebView(ctx).apply {
                     layoutParams = ViewGroup.LayoutParams(
@@ -184,6 +185,16 @@ private fun SenseLinkApp(onWebViewCreated: (WebView) -> Unit) {
             }
         )
     }
+}
+
+/** Compose can hand the AndroidView factory a wrapped Context; unwrap to the real Activity. */
+private fun Context.findMainActivity(): MainActivity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is MainActivity) return c
+        c = c.baseContext
+    }
+    return null
 }
 
 /**

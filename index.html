@@ -644,7 +644,7 @@ $('#togMic').addEventListener('click', async()=>{
     s.getTracks().forEach(x=>x.stop());
     S.micGranted=true; t.classList.add('on'); $('#micSub').textContent='Granted · offline STT ready';
     $('#pVoice').textContent='TTS+STT'; $('#pVoice').className='v c';
-  }catch(e){ toast('Microphone permission denied',true); $('#pVoice').textContent='TTS ONLY'; }
+  }catch(e){ toast('Mic blocked: '+((e&&e.name)||'denied'),true); $('#pVoice').textContent='TTS ONLY'; }
 });
 $('#enterBtn').addEventListener('click',()=>{
   show('main'); buildLexicon(); refreshProfile();
