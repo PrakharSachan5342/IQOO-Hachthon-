@@ -55,4 +55,6 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.webkit:webkit:1.11.0")
+    // On-device LLM (LiteRT / MediaPipe LLM Inference) — runs Gemma-2B int4 locally.
+    implementation("com.google.mediapipe:tasks-genai:0.10.14")
 }

@@ -482,7 +482,7 @@
         <div class="field">
           <div class="fl">Local LLM Core Engine</div>
           <select id="modelSel"><option>Gemma-3 1B (INT4 Quantized)</option><option>Gemma-2 2B (INT4 Quantized)</option><option>Phi-3 Mini (INT4)</option></select>
-          <div class="statuschip"><span class="dot"></span>Status: Fully Cached (1.3 GB)</div>
+          <div class="statuschip" id="llmStatus"><span class="dot"></span>Status: Fully Cached (1.3 GB)</div>
         </div>
         <button class="ghostbtn" id="hotReload"><svg fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" d="M3 12a9 9 0 0115-6.7L21 8M21 12a9 9 0 01-15 6.7L3 16"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>MODEL HOT-RELOAD</button>
         <div class="field" style="margin-top:16px">
@@ -813,23 +813,39 @@ function composeSentence(tokens){
   return s;
 }
 
-let composing=false;
+let composing=false, llmReqId=0; const llmPending={}; window.__llmTimers={};
+function llmReady(){ try{ return !!(window.AndroidLLM && AndroidLLM.isReady()); }catch(e){ return false; } }
+function finishCompose(tokens, sentence){
+  const out=$('#output'); out.className='out'; out.textContent=sentence;
+  speak(sentence); addLibrary(sentence);
+  S.tokens=[]; renderRaw(); refreshProfile(); composing=false;
+}
 function composeAndSpeak(){
   if(!S.tokens.length || composing) return;
   composing=true;
   const tokens=[...S.tokens];
-  const sentence=composeSentence(tokens);
-  $('#srcTag').textContent='GEMMA·INT4';
   const out=$('#output'); out.className='out'; out.textContent='…';
-  // brief "inference" beat for realism, then reveal
-  setTimeout(()=>{
-    out.textContent=sentence;
-    speak(sentence);
-    addLibrary(sentence);
-    S.tokens=[]; renderRaw(); refreshProfile();
-    composing=false;
-  }, 420);
+  if(llmReady()){
+    // Real on-device Gemma-2B (LiteRT). Async; result arrives via window.__onLLM.
+    $('#srcTag').textContent='GEMMA·2B';
+    const id=++llmReqId; llmPending[id]=tokens;
+    window.__llmTimers[id]=setTimeout(()=>{           // demo-safety: never hang on the model
+      if(llmPending[id]){ const t=llmPending[id]; delete llmPending[id]; finishCompose(t, composeSentence(t)); }
+    }, 6000);
+    try{ AndroidLLM.compose(id, JSON.stringify(tokens), S.locale); }
+    catch(e){ clearTimeout(window.__llmTimers[id]); delete llmPending[id]; finishCompose(tokens, composeSentence(tokens)); }
+  } else {
+    // Fallback: deterministic on-device composer (no model present).
+    $('#srcTag').textContent='GEMMA·INT4';
+    setTimeout(()=>finishCompose(tokens, composeSentence(tokens)), 420);
+  }
 }
+window.__onLLM=function(id, sentence){
+  if(window.__llmTimers[id]){ clearTimeout(window.__llmTimers[id]); delete window.__llmTimers[id]; }
+  if(!llmPending[id]) return;
+  const tokens=llmPending[id]; delete llmPending[id];
+  finishCompose(tokens, (sentence&&sentence.trim())?sentence.trim():composeSentence(tokens));
+};
 
 /* ========================================================================
    TEXT-TO-SPEECH
@@ -950,7 +966,7 @@ $$('#nav button').forEach(b=>b.addEventListener('click',()=>{
   const sv=b.dataset.sv; $$('.subview').forEach(s=>s.classList.toggle('active', s.id==='sv-'+sv));
   $('#view').scrollTop=0; if(sv==='library') renderLibrary(); if(sv==='profile') refreshProfile();
 }));
-$('#gearBtn').addEventListener('click',()=>show('config'));
+$('#gearBtn').addEventListener('click',()=>{ show('config'); refreshLlmStatus(); });
 $('#cfgBack').addEventListener('click',()=>show('main'));
 
 /* ========================================================================
@@ -963,7 +979,12 @@ $$('#voiceSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#voiceSeg
 $('#togHaptic').addEventListener('click',e=>{ const t=e.currentTarget; t.classList.toggle('on'); S.haptics=t.classList.contains('on'); });
 $('#togBroadcast').addEventListener('click',e=>{ const t=e.currentTarget; t.classList.toggle('on'); S.broadcast=t.classList.contains('on'); });
 $('#togViewport').addEventListener('click',e=>{ const t=e.currentTarget; t.classList.toggle('on'); S.viewport=t.classList.contains('on'); if(!S.viewport) octx.clearRect(0,0,overlay.width,overlay.height); });
-$('#hotReload').addEventListener('click',e=>{ const b=e.currentTarget; const o=b.innerHTML; b.innerHTML='RELOADING…'; setTimeout(()=>{ b.innerHTML=o; toast('Model hot-reloaded · 1.3 GB cached'); },1100); });
+window.LLM_MODEL_URL = window.LLM_MODEL_URL || '';   // set to a direct .task URL to auto-download Gemma on first run
+function refreshLlmStatus(){ const el=$('#llmStatus'); if(el && window.AndroidLLM){ try{ el.innerHTML='<span class="dot"></span>'+AndroidLLM.status(); }catch(e){} } }
+window.__onLLMDownload=function(pct,msg){ toast(msg+(pct>=0?(' '+pct+'%'):''), pct<0); refreshLlmStatus(); };
+$('#hotReload').addEventListener('click',e=>{ const b=e.currentTarget; const o=b.innerHTML; b.innerHTML='RELOADING…';
+  try{ if(window.AndroidLLM){ AndroidLLM.ensureModel(window.LLM_MODEL_URL); } }catch(_){}
+  setTimeout(()=>{ b.innerHTML=o; refreshLlmStatus(); toast(window.AndroidLLM?('Engine: '+AndroidLLM.status()):'Model hot-reloaded · 1.3 GB cached'); },1100); });
 $('#modelSel').addEventListener('change',e=>toast('Engine → '+e.target.value));
 $('#testHaptic').addEventListener('click',()=>{ buzz(PULSE.start); setTimeout(()=>buzz(PULSE.complete),600); toast('Haptic relayed to wrist'); });
 

@@ -141,36 +141,44 @@ Tested by sideloading the APK on **3 physical iQOO phones**.
 > **Known WebView limitation (roadmap item):** the *reverse* speech-to-text loop uses the Web
 > Speech API (`webkitSpeechRecognition`), which Android System WebView does not implement (it only
 > exists in Chrome-the-browser). It degrades gracefully today (a toast, no crash). The fix is the
-> native `SpeechRecognizer` bridge described below. Text-to-Speech (the headline "speaks aloud")
+> native `SpeechRecognizer` bridge (planned for the next iteration). Text-to-Speech (the headline "speaks aloud")
 > uses `speechSynthesis`, which **is** available in WebView.
 
 ---
 
-## Roadmap — next features (idea + solution)
+## On-device LLM — Gemma-2B (4-bit) via LiteRT &nbsp;✅ implemented
 
-### 1 · Real on-device LLM — Gemma 2B (4-bit) via LiteRT
+The composer is now backed by a **real on-device LLM**.
+[`LlmBridge.kt`](android/app/src/main/java/com/kraftshala/senselink/LlmBridge.kt) runs Google
+**Gemma-2B (int4)** through the **LiteRT / MediaPipe LLM Inference** runtime and is exposed to the
+web app as `window.AndroidLLM`. `composeAndSpeak()` calls it with a low-temperature prompt that
+rewrites the gesture tokens into one fluent sentence; the source tag shows **GEMMA·2B** when the
+model is live. It runs fully locally — airplane-mode safe.
 
-**Idea.** Replace the deterministic rule-based sentence composer with a genuine on-device language
-model so the "Tarzan fragments → fluent, dignified sentence" step is real AI, running locally with
-zero network — and downloaded **once, on first launch** so the APK stays small.
+**The model is not shipped in the APK** (it's ~1.3 GB). Provision it once, either way:
 
-**Solution.**
-1. **First-run model fetch.** On first launch, show a one-time "Provisioning on-device intelligence
-   (~1.3 GB)" screen and download the quantized **Gemma 2B (int4)** weights over Wi-Fi into the
-   app's private storage (`filesDir`). Verify checksum, then never download again; all later
-   launches load from disk and run fully offline / airplane-mode.
-2. **Runtime: LiteRT (formerly TensorFlow Lite).** Run inference through Google AI Edge's
-   **MediaPipe LLM Inference API**, which is the LiteRT-backed on-device path for Gemma. *Format
-   note:* GGUF is the llama.cpp format; the LiteRT/MediaPipe path uses a converted int4 `.task`/`.bin`
-   Gemma bundle. We'll ship the LiteRT route as primary, with a **llama.cpp + GGUF (JNI)** engine as
-   an alternative for the exact GGUF artifact. Either way: Gemma-2B, 4-bit, on-device.
-3. **Wiring.** Expose `AndroidLLM.compose(tokensJson, locale)` over a JS↔Kotlin bridge
-   (`addJavascriptInterface`). The web app calls it from `composeSentence()` with a low-temperature
-   (~0.2) prompt that rewrites token fragments into a natural sentence in the target locale.
-4. **Demo-safety.** If the model isn't present yet, transparently fall back to the existing
-   rule-based composer — the demo never blocks on a download.
+```bash
+# A) Side-load for the demo (most reliable):
+adb push gemma.task /sdcard/Android/data/com.kraftshala.senselink/files/gemma.task
+#    then relaunch, or System Config -> MODEL HOT-RELOAD.
 
-### 2 · Universal smartwatch bridge (BLE + LLM-generated protocol)
+# B) First-run download: set window.LLM_MODEL_URL (a direct .task URL) in index.html,
+#    then MODEL HOT-RELOAD streams it into filesDir/llm/gemma.task and auto-initialises.
+```
+
+Get a compatible `.task` from Google AI Edge / Kaggle / the `litert-community` HuggingFace org
+(accept the Gemma license). *Format note:* GGUF is llama.cpp's format; the LiteRT/MediaPipe path
+uses a converted int4 `.task` bundle — a llama.cpp + GGUF (JNI) engine is a drop-in alternative.
+
+**Demo-safety:** if no model is present (or it loads slowly), the app transparently uses the
+deterministic composer, and a 6 s watchdog guarantees the demo never hangs on the model — the
+source tag then reads **GEMMA·INT4**.
+
+---
+
+## Roadmap — next feature (idea + solution)
+
+### Universal smartwatch bridge (BLE + LLM-generated protocol)
 
 **Idea.** When the app pairs with **any** smartwatch over Bluetooth, identify the watch and have the
 on-device LLM generate the right communication payload so SENSE-LINK can relay the finalized

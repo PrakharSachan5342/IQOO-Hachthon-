@@ -51,6 +51,8 @@ async function main() {
   await mkdir(join(MP, "wasm"), { recursive: true });
   await mkdir(FONTS, { recursive: true });
 
+  const htmlOnly = process.argv.includes("--html-only");
+  if (!htmlOnly) {
   console.log("MediaPipe tasks-vision runtime:");
   await download(`${MP_BASE}/vision_bundle.mjs`, join(MP, "vision_bundle.mjs"));
   for (const f of [
@@ -83,6 +85,9 @@ async function main() {
   }
   await writeFile(join(FONTS, "fonts.css"), localCss, "utf8");
   console.log(`  ✓ fonts.css written (${ok}/${uniq.length} woff2 localised)`);
+  } else {
+    console.log("--html-only: skipping asset downloads; rewriting index.html only");
+  }
 
   console.log("Rewriting index.html -> assets/www/index.html:");
   const srcHtml = join(REPO, "index.html");

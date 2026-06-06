@@ -37,9 +37,12 @@ import java.io.IOException
 class MainActivity : ComponentActivity() {
 
     private var webView: WebView? = null
+    private var llmBridge: LlmBridge? = null
 
     /** A WebView getUserMedia request that is waiting on an OS permission grant. */
     private var pendingWebRequest: PermissionRequest? = null
+
+    fun registerLlm(bridge: LlmBridge) { llmBridge = bridge }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -114,6 +117,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        llmBridge?.close()
+        llmBridge = null
         webView?.destroy()
         webView = null
         super.onDestroy()
@@ -163,6 +168,14 @@ private fun SenseLinkApp(onWebViewCreated: (WebView) -> Unit) {
                             if (host != null) host.handleWebPermissionRequest(request)
                             else request.grant(request.resources)
                         }
+                    }
+
+                    // Expose the on-device Gemma LLM to the web app (degrades to rule-based).
+                    if (host != null) {
+                        val bridge = LlmBridge(host, this)
+                        addJavascriptInterface(bridge, "AndroidLLM")
+                        host.registerLlm(bridge)
+                        bridge.initIfPresent()
                     }
 
                     loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
