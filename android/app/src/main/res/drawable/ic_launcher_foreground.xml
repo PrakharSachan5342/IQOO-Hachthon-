@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SENSE-LINK mark: rotated diamond + orange infinity stroke, matching the splash. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Scale the 100x100 splash artwork into the adaptive-icon safe zone (centred). -->
+    <group
+        android:scaleX="0.66"
+        android:scaleY="0.66"
+        android:translateX="21"
+        android:translateY="21">
+
+        <!-- diamond outline (square rotated 45deg about its centre) -->
+        <group
+            android:pivotX="50"
+            android:pivotY="50"
+            android:rotation="45">
+            <path
+                android:fillColor="#00000000"
+                android:strokeColor="#33FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M28,28 h44 v44 h-44 z" />
+        </group>
+
+        <!-- infinity / link glyph -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F26B2A"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:pathData="M38,50 C38,42 50,42 50,50 C50,58 62,58 62,50 C62,42 50,42 50,50 C50,58 38,58 38,50 Z" />
+    </group>
+</vector>
